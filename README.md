@@ -11,15 +11,7 @@ the profile opens in a new cmux workspace running its command (usually `ssh …`
 It reads the **same JSON format iTerm2 uses for dynamic profiles**, so you can
 point it at a profiles file you already maintain.
 
-```
-┌───────────────────────────────────────────────┐
-│ Search Profiles      ↩ new workspace  ⇧↩ split │
-├───────────────────────────────────────────────┤
-│ prod web (ssh)        ssh deploy@prod-1…  [prod]│
-│ staging db            ssh root@10.0.0.5         │
-│ local project         ~/code/myapp        [local]│
-└───────────────────────────────────────────────┘
-```
+![cmux-pick picker](docs/screenshot.png)
 
 - **Enter** → open the profile in a new workspace.
 - **Shift+Enter** → open it as a split ("tab") in the current workspace.
