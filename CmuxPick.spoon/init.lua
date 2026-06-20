@@ -102,7 +102,11 @@ function obj:start(opts)
   local function loadChoices()
     local list = readProfilesFile()
     local choices = {
-      { text = "\u{270E}  Edit profiles\u{2026}", subText = "Add, edit, or remove profiles  (\u{2318}E)", action = "edit" },
+      {
+        text    = "\u{270E}  Edit profiles\u{2026}",
+        subText = "Add, edit, or remove profiles  (\u{2318}E)",
+        action  = "edit",
+      },
     }
     for _, p in ipairs(list) do
       local sub = p.Command or ""
