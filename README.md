@@ -1,8 +1,8 @@
 # cmux-pick
 
 An [iTerm2 Profiles](https://iterm2.com/documentation-dynamic-profiles.html)-style
-launcher for the [cmux](https://cmux.com) terminal, built on
-[Hammerspoon](https://www.hammerspoon.org).
+launcher for the [cmux](https://cmux.com) terminal, built as a
+[Hammerspoon](https://www.hammerspoon.org) Spoon.
 
 Press a hotkey, get a fuzzy-search modal of your saved sessions, hit Enter, and
 the profile opens in a new cmux workspace running its command (usually `ssh …`).
@@ -11,16 +11,18 @@ point it at a profiles file you already maintain.
 
 ```
 ┌───────────────────────────────────────────────┐
-│ Search Profiles      ↵ new workspace  ⌘↵ split │
+│ Search Profiles      ↩ new workspace  ⇧↩ split │
 ├───────────────────────────────────────────────┤
-│ prod web (ssh)            ssh deploy@prod-1…    │
-│ staging db                ssh root@10.0.0.5     │
-│ local project             ~/code/myapp          │
+│ prod web (ssh)        ssh deploy@prod-1…  [prod]│
+│ staging db            ssh root@10.0.0.5         │
+│ local project         ~/code/myapp        [local]│
 └───────────────────────────────────────────────┘
 ```
 
 - **Enter** → open the profile in a new workspace.
-- **Cmd+Enter** → open it as a split ("tab") in the current workspace.
+- **Shift+Enter** → open it as a split ("tab") in the current workspace.
+
+<!-- TODO before release: drop a screenshot/gif of the picker here. -->
 
 ## Requirements
 
@@ -32,14 +34,14 @@ point it at a profiles file you already maintain.
 ## Install
 
 ```bash
-git clone https://github.com/<you>/cmux-pick.git
+git clone https://github.com/YOUR-GITHUB-USERNAME/cmux-pick.git
 cd cmux-pick
 ./install.sh
 ```
 
-`install.sh` symlinks `cmux-pick.lua` into `~/.hammerspoon/`, seeds a config at
-`~/.config/cmux-pick/profiles.json`, and appends `require("cmux-pick").start()`
-to your `~/.hammerspoon/init.lua`. Then:
+`install.sh` links `CmuxPick.spoon` into `~/.hammerspoon/Spoons/`, seeds a config
+at `~/.config/cmux-pick/profiles.json`, and adds the loader to your
+`~/.hammerspoon/init.lua`. Then:
 
 1. **Enable socket access in cmux** — Settings → allow external processes
    (`CMUX_SOCKET_MODE = automation`). Without this, launches fail with `exit 15`,
@@ -49,11 +51,11 @@ to your `~/.hammerspoon/init.lua`. Then:
 
 ### Manual install
 
-If you'd rather not run the script: symlink or copy `cmux-pick.lua` somewhere on
-Hammerspoon's Lua path (`~/.hammerspoon/` works), then add to `init.lua`:
+Copy or symlink `CmuxPick.spoon` into `~/.hammerspoon/Spoons/`, then add to your
+`init.lua`:
 
 ```lua
-require("cmux-pick").start()
+hs.loadSpoon("CmuxPick"):start()
 ```
 
 ## Profiles
@@ -64,8 +66,8 @@ iTerm2 dynamic-profile shape. Only a few fields are used:
 ```json
 {
   "Profiles": [
-    { "Name": "prod web (ssh)", "Command": "ssh deploy@prod-1.example.com", "Custom Command": "Yes" },
-    { "Name": "local project",  "Working Directory": "~/code/myapp" }
+    { "Name": "prod web (ssh)", "Command": "ssh deploy@prod-1.example.com", "Custom Command": "Yes", "Tags": ["prod"] },
+    { "Name": "local project",  "Working Directory": "~/code/myapp", "Tags": ["local"] }
   ]
 }
 ```
@@ -76,8 +78,10 @@ iTerm2 dynamic-profile shape. Only a few fields are used:
 | `Command` | Command to run (with `"Custom Command": "Yes"`). Usually `ssh …`. |
 | `Custom Command` | `"Yes"` to run `Command`; otherwise a plain shell. |
 | `Working Directory` | `cwd` for the session. `~` is expanded. |
+| `Tags` | Shown next to the command and searchable. |
 
-A bare top-level array (`[ {…}, {…} ]`) also works.
+A bare top-level array (`[ {…}, {…} ]`) also works. Typing in the picker matches
+the name, the command, and the tags.
 
 **Already keep an iTerm2 dynamic-profiles file?** Point cmux-pick straight at it
 instead of maintaining a second copy:
@@ -94,7 +98,7 @@ The file is re-read every time you open the picker, so edits show up immediately
 Pass an options table to `start()`:
 
 ```lua
-require("cmux-pick").start({
+hs.loadSpoon("CmuxPick"):start({
   profiles   = "~/dotfiles/cmux-profiles.json",  -- profiles JSON path
   app        = "cmux",                           -- cmux's macOS app name
   splitDir   = "down",                           -- down | up | left | right
@@ -119,12 +123,13 @@ shells out to it:
 
 - **Enter** → `cmux new-workspace --name … --cwd … --command … --focus true`
   (one call; cmux runs the command in the new workspace, no race).
-- **Cmd+Enter** → `cmux new-split <dir> --workspace <current> --focus true`,
+- **Shift+Enter** → `cmux new-split <dir> --workspace <current> --focus true`,
   then `cmux send --surface <new> "<command>\n"` (split has no `--command`).
 
 The picker is a native `hs.chooser`. Because `hs.chooser` can't report which
-modifier was held on selection, Cmd+Enter is caught by an `hs.eventtap` that's
-active only while the modal is open.
+modifier was held on selection, Shift+Enter is caught by an `hs.eventtap` that's
+active only while the modal is open. (Cmd+Enter is intercepted by macOS before
+it reaches the chooser — it just beeps — which is why the split is on Shift.)
 
 ## Troubleshooting
 
@@ -133,8 +138,13 @@ active only while the modal is open.
 | Launch alert `exit 15` | Socket closed to external processes. Enable automation mode in cmux Settings. |
 | "cmux CLI not found" | cmux not installed, or in a non-standard location — set `cmuxBin`. |
 | Cmd+O does nothing | Wrong `app` name (see above), or Hammerspoon lacks Accessibility permission. |
-| Cmd+Enter does nothing | Needs a recent Hammerspoon (`selectedRowContents`). `brew upgrade --cask hammerspoon`. |
+| "couldn't read selection" on Shift+Enter | Old Hammerspoon — `brew upgrade --cask hammerspoon`. |
 | Picker empty | Bad/missing profiles file — check the path and JSON. |
+
+## Development
+
+`luacheck` runs in CI on every push (`.github/workflows/luacheck.yml`). Run it
+locally with `luacheck .`.
 
 ## License
 
