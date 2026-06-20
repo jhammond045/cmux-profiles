@@ -1,5 +1,7 @@
 # cmux-pick
 
+[![luacheck](https://github.com/jhammond045/cmux-profiles/actions/workflows/luacheck.yml/badge.svg)](https://github.com/jhammond045/cmux-profiles/actions/workflows/luacheck.yml)
+
 An [iTerm2 Profiles](https://iterm2.com/documentation-dynamic-profiles.html)-style
 launcher for the [cmux](https://cmux.com) terminal, built as a
 [Hammerspoon](https://www.hammerspoon.org) Spoon.
@@ -22,8 +24,6 @@ point it at a profiles file you already maintain.
 - **Enter** → open the profile in a new workspace.
 - **Shift+Enter** → open it as a split ("tab") in the current workspace.
 
-<!-- TODO before release: drop a screenshot/gif of the picker here. -->
-
 ## Requirements
 
 - macOS
@@ -34,8 +34,8 @@ point it at a profiles file you already maintain.
 ## Install
 
 ```bash
-git clone https://github.com/YOUR-GITHUB-USERNAME/cmux-pick.git
-cd cmux-pick
+git clone https://github.com/jhammond045/cmux-profiles.git
+cd cmux-profiles
 ./install.sh
 ```
 
@@ -57,6 +57,12 @@ Copy or symlink `CmuxPick.spoon` into `~/.hammerspoon/Spoons/`, then add to your
 ```lua
 hs.loadSpoon("CmuxPick"):start()
 ```
+
+Or grab `CmuxPick.spoon.zip` from the
+[latest release](https://github.com/jhammond045/cmux-profiles/releases/latest),
+unzip, and double-click `CmuxPick.spoon` to install it into Hammerspoon. (You
+still need to create `~/.config/cmux-pick/profiles.json` — copy
+[`examples/profiles.example.json`](examples/profiles.example.json).)
 
 ## Profiles
 

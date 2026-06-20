@@ -8,7 +8,7 @@
 ---   * Enter        -> open the profile in a new workspace
 ---   * Shift+Enter  -> open it as a split ("tab") in the current workspace
 ---
---- Download: https://github.com/YOUR-GITHUB-USERNAME/cmux-pick
+--- Download: https://github.com/jhammond045/cmux-profiles
 
 local obj = {}
 obj.__index = obj
@@ -16,7 +16,7 @@ obj.__index = obj
 obj.name     = "CmuxPick"
 obj.version  = "1.0.0"
 obj.author   = "jhammond"
-obj.homepage = "https://github.com/YOUR-GITHUB-USERNAME/cmux-pick"
+obj.homepage = "https://github.com/jhammond045/cmux-profiles"
 obj.license  = "MIT - https://opensource.org/licenses/MIT"
 
 -- shell single-quote:  ' -> '\''
