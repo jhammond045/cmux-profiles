@@ -1,0 +1,25 @@
+{
+  "Profiles": [
+    {
+      "Name": "prod web (ssh)",
+      "Command": "ssh deploy@prod-1.example.com",
+      "Custom Command": "Yes",
+      "Tags": ["ssh", "prod"]
+    },
+    {
+      "Name": "jump + remote cd",
+      "Command": "ssh -t deploy@host 'cd /var/www/app && exec $SHELL -l'",
+      "Custom Command": "Yes",
+      "Tags": ["ssh"]
+    },
+    {
+      "Name": "local project",
+      "Working Directory": "~/code/myapp",
+      "Tags": ["local"]
+    },
+    {
+      "Name": "home shell",
+      "Working Directory": "~"
+    }
+  ]
+}

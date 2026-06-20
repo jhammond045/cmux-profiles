@@ -1,0 +1,4 @@
+# your real profiles never belong in the repo
+profiles.json
+*.local.json
+.DS_Store
