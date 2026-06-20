@@ -15,6 +15,7 @@ point it at a profiles file you already maintain.
 
 - **Enter** → open the profile in a new workspace.
 - **Shift+Enter** → open it as a split ("tab") in the current workspace.
+- **Cmd+E** (or the "✎ Edit profiles…" row) → open the built-in profile editor.
 
 ## Requirements
 
@@ -90,6 +91,19 @@ ln -sf ~/Library/Application\ Support/iTerm2/DynamicProfiles/yours.json \
 ```
 
 The file is re-read every time you open the picker, so edits show up immediately.
+
+### Editing profiles
+
+Press **Cmd+E** in the picker (or pick the **✎ Edit profiles…** row) to open a
+small editor window: add, rename, edit, and delete profiles, then **Save**
+(Cmd+S). It writes back to your profiles JSON and keeps a `.bak` of the previous
+contents.
+
+The editor only touches the fields it knows about (`Name`, `Command`,
+`Custom Command`, `Working Directory`, `Tags`) — any other keys in a profile
+(e.g. an iTerm2 `Guid`) are preserved on save, and new profiles get a generated
+`Guid`. If your profiles file is generated/synced from elsewhere, edits made
+here will be overwritten the next time it regenerates.
 
 ## Configuration
 

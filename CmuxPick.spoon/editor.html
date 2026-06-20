@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>cmux-pick profiles</title>
+<style>
+  :root {
+    --bg: #1e1e1e; --panel: #262626; --panel2: #2d2d2d; --line: #3a3a3a;
+    --fg: #e8e8e8; --dim: #9a9a9a; --accent: #2f7bf6; --danger: #d9534f;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  header .title { font-weight: 600; }
+  header .spacer { flex: 1; }
+  button {
+    font: inherit; color: var(--fg); background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; cursor: pointer;
+  }
+  button:hover { background: #353535; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { filter: brightness(1.08); }
+  button.danger { color: var(--danger); border-color: #4a3030; }
+  button.danger:hover { background: #3a2626; }
+  main { flex: 1; display: flex; min-height: 0; }
+  aside {
+    width: 240px; border-right: 1px solid var(--line); background: var(--panel);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  #list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; }
+  #list li {
+    padding: 7px 10px; border-radius: 6px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #list li:hover { background: var(--panel2); }
+  #list li.active { background: var(--accent); color: #fff; }
+  #list li.empty { color: var(--dim); cursor: default; }
+  #list li.empty:hover { background: none; }
+  aside .add { margin: 8px; }
+  section#form { flex: 1; padding: 22px 26px; overflow-y: auto; }
+  section#form.empty-state .field, section#form.empty-state .actions { display: none; }
+  #empty { color: var(--dim); }
+  section#form:not(.empty-state) #empty { display: none; }
+  label.field { display: block; margin: 0 0 16px; max-width: 560px; }
+  label.field .lbl { display: block; color: var(--dim); margin-bottom: 5px; }
+  input[type=text] {
+    width: 100%; font: inherit; color: var(--fg); background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px;
+  }
+  input[type=text]:focus { outline: none; border-color: var(--accent); }
+  label.check { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; cursor: pointer; }
+  .actions { margin-top: 24px; }
+  .hint { color: var(--dim); font-size: 12px; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <header>
+    <span class="title">Profiles</span>
+    <span class="spacer"></span>
+    <button id="save" class="primary">Save</button>
+    <button id="close">Close</button>
+  </header>
+  <main>
+    <aside>
+      <ul id="list"></ul>
+      <button id="add" class="add">+ Add profile</button>
+    </aside>
+    <section id="form" class="empty-state">
+      <p id="empty">Select a profile, or add one.</p>
+      <label class="field"><span class="lbl">Name</span><input type="text" id="f-name"></label>
+      <label class="check"><input type="checkbox" id="f-custom"> Run a custom command (otherwise a plain shell)</label>
+      <label class="field"><span class="lbl">Command</span><input type="text" id="f-command" placeholder="ssh user@host">
+        <span class="hint">Used when "Run a custom command" is checked.</span></label>
+      <label class="field"><span class="lbl">Working directory</span><input type="text" id="f-cwd" placeholder="~/code/project"></label>
+      <label class="field"><span class="lbl">Tags</span><input type="text" id="f-tags" placeholder="prod, ssh">
+        <span class="hint">Comma-separated. Searchable in the picker.</span></label>
+      <div class="actions"><button id="del" class="danger">Delete profile</button></div>
+    </section>
+  </main>
+<script>
+  // Profiles are injected as base64'd JSON to dodge all quoting issues.
+  function decodeInitial(b64) {
+    try {
+      const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      return JSON.parse(new TextDecoder().decode(bytes));
+    } catch (e) { return []; }
+  }
+  let profiles = decodeInitial("__PROFILES_B64__");
+  if (!Array.isArray(profiles)) profiles = [];
+  let sel = profiles.length ? 0 : -1;
+
+  const $ = id => document.getElementById(id);
+  const list = $('list');
+
+  function send(obj) {
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cmuxpick) {
+      window.webkit.messageHandlers.cmuxpick.postMessage(obj);
+    }
+  }
+
+  function renderList() {
+    list.innerHTML = '';
+    if (!profiles.length) {
+      const li = document.createElement('li');
+      li.className = 'empty'; li.textContent = 'No profiles yet.';
+      list.appendChild(li); return;
+    }
+    profiles.forEach((p, i) => {
+      const li = document.createElement('li');
+      li.textContent = p.Name || '(unnamed)';
+      li.className = i === sel ? 'active' : '';
+      li.onclick = () => { sel = i; renderAll(); };
+      list.appendChild(li);
+    });
+  }
+
+  function renderForm() {
+    const has = sel >= 0 && profiles[sel];
+    $('form').classList.toggle('empty-state', !has);
+    if (!has) return;
+    const p = profiles[sel];
+    $('f-name').value = p.Name || '';
+    $('f-custom').checked = (p['Custom Command'] === 'Yes');
+    $('f-command').value = p.Command || '';
+    $('f-cwd').value = p['Working Directory'] || '';
+    $('f-tags').value = (p.Tags || []).join(', ');
+  }
+
+  function renderAll() { renderList(); renderForm(); }
+
+  function bind(id, fn, relist) {
+    $(id).addEventListener('input', () => {
+      if (sel < 0) return;
+      fn(profiles[sel], $(id).value);
+      if (relist) renderList();
+    });
+  }
+  bind('f-name', (p, v) => p.Name = v, true);
+  bind('f-command', (p, v) => p.Command = v);
+  bind('f-cwd', (p, v) => p['Working Directory'] = v);
+  bind('f-tags', (p, v) => p.Tags = v.split(',').map(s => s.trim()).filter(Boolean));
+  $('f-custom').addEventListener('change', () => {
+    if (sel < 0) return;
+    profiles[sel]['Custom Command'] = $('f-custom').checked ? 'Yes' : 'No';
+  });
+
+  $('add').onclick = () => {
+    const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('cmux-' + Date.now());
+    profiles.push({ Name: 'New profile', Command: '', 'Custom Command': 'No',
+                    'Working Directory': '', Tags: [], Guid: id });
+    sel = profiles.length - 1;
+    renderAll();
+    $('f-name').focus(); $('f-name').select();
+  };
+
+  $('del').onclick = () => {
+    if (sel < 0) return;
+    profiles.splice(sel, 1);
+    sel = profiles.length ? Math.min(sel, profiles.length - 1) : -1;
+    renderAll();
+  };
+
+  function save() {
+    // Drop empty optional fields so the file stays clean; keep Guid + any
+    // fields we don't edit (Badge Text, Rewritable, ...) untouched.
+    const clean = profiles.map(p => {
+      const q = Object.assign({}, p);
+      if (!q.Tags || !q.Tags.length) delete q.Tags;
+      if (!q['Working Directory']) delete q['Working Directory'];
+      if (q['Custom Command'] !== 'Yes' && !q.Command) delete q.Command;
+      return q;
+    });
+    send({ action: 'save', profiles: clean });
+    flash('Saved');
+  }
+  $('save').onclick = save;
+  $('close').onclick = () => send({ action: 'close' });
+
+  function flash(t) {
+    const b = $('save'); const o = b.textContent;
+    b.textContent = t; setTimeout(() => b.textContent = o, 900);
+  }
+
+  document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
+    else if (e.key === 'Escape') { e.preventDefault(); send({ action: 'close' }); }
+  });
+
+  renderAll();
+</script>
+</body>
+</html>

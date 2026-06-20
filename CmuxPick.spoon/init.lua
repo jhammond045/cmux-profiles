@@ -7,6 +7,7 @@
 --- fuzzy modal of your profiles:
 ---   * Enter        -> open the profile in a new workspace
 ---   * Shift+Enter  -> open it as a split ("tab") in the current workspace
+---   * Cmd+E        -> open the profile editor (also the "Edit profiles…" row)
 ---
 --- Download: https://github.com/jhammond045/cmux-profiles
 
@@ -14,10 +15,13 @@ local obj = {}
 obj.__index = obj
 
 obj.name     = "CmuxPick"
-obj.version  = "1.0.0"
+obj.version  = "1.1.0"
 obj.author   = "jhammond"
 obj.homepage = "https://github.com/jhammond045/cmux-profiles"
 obj.license  = "MIT - https://opensource.org/licenses/MIT"
+
+-- directory of this file (to find editor.html)
+local SOURCE_DIR = (debug.getinfo(1, "S").source:sub(2):match("(.*/)")) or "./"
 
 -- shell single-quote:  ' -> '\''
 local function shq(s) return "'" .. tostring(s):gsub("'", "'\\''") .. "'" end
@@ -28,6 +32,11 @@ local function expanduser(p)
     return os.getenv("HOME") .. p:sub(2)
   end
   return p
+end
+
+local function readFile(p)
+  local f = io.open(p, "r"); if not f then return nil end
+  local s = f:read("a"); f:close(); return s
 end
 
 --- CmuxPick:start([opts]) -> self
@@ -80,18 +89,24 @@ function obj:start(opts)
     return out or ""
   end
 
-  -- Parse iTerm2 dynamic-profile JSON ({"Profiles":[...]}); a bare array works too.
-  local function loadProfiles()
+  -- Read the profiles file. Returns (array, wasWrapped) where wasWrapped is true
+  -- for {"Profiles":[...]} and false for a bare top-level array.
+  local function readProfilesFile()
     local data = hs.json.read(PROFILES)
-    if not data then
-      hs.alert.show("cmux-pick: cannot read " .. PROFILES)
-      return {}
-    end
-    local list = data.Profiles or data
-    local choices = {}
+    if type(data) ~= "table" then return {}, true end
+    if data.Profiles then return data.Profiles, true end
+    return data, false
+  end
+
+  -- Parse profiles for the picker. iTerm2 dynamic-profile JSON or a bare array.
+  local function loadChoices()
+    local list = readProfilesFile()
+    local choices = {
+      { text = "\u{270E}  Edit profiles\u{2026}", subText = "Add, edit, or remove profiles  (\u{2318}E)", action = "edit" },
+    }
     for _, p in ipairs(list) do
       local sub = p.Command or ""
-      if p.Tags and #p.Tags > 0 then             -- show + make tags searchable
+      if p.Tags and #p.Tags > 0 then              -- show + make tags searchable
         local t = "[" .. table.concat(p.Tags, ", ") .. "]"
         sub = (sub ~= "" and (sub .. "  ") or "") .. t
       end
@@ -115,8 +130,6 @@ function obj:start(opts)
   end
 
   -- Shift+Enter: open the profile as a split in the CURRENT workspace.
-  -- new-split has no --command, so split then send the command line (async,
-  -- so Hammerspoon's UI doesn't freeze while the new shell comes up).
   local function launchSplit(c)
     if not c or not c.text then return end
     local cw  = cmux("current-workspace")
@@ -131,50 +144,126 @@ function obj:start(opts)
     if c.cmd and c.cmd ~= "" then parts[#parts + 1] = c.cmd end
     if #parts > 0 then
       local line = shq(table.concat(parts, " && ") .. "\n")
-      hs.timer.doAfter(0.35, function()          -- non-blocking; split -> shell ready
+      hs.timer.doAfter(0.35, function()           -- non-blocking; split -> shell ready
         cmux("send --surface " .. sid .. " " .. line)
       end)
     end
   end
 
-  local altTap            -- forward decl (captured by onPick + show)
+  ---------------------------------------------------------------------------
+  -- Profile editor (hs.webview form)
+  ---------------------------------------------------------------------------
+  local editorWrapped = true                      -- shape to write back on save
+
+  -- Write the profiles array back, preserving the file's original shape and
+  -- keeping a .bak of the previous contents. Writes through a symlink in place.
+  local function writeProfiles(arr)
+    local prev = readFile(PROFILES)
+    if prev then
+      local b = io.open(PROFILES .. ".bak", "w")
+      if b then b:write(prev); b:close() end
+    end
+    local out = editorWrapped and { Profiles = arr } or arr
+    local f, err = io.open(PROFILES, "w")
+    if not f then
+      hs.alert.show("cmux-pick: can't write profiles \u{2014} " .. tostring(err)); return false
+    end
+    f:write(hs.json.encode(out, true)); f:write("\n"); f:close()
+    return true
+  end
+
+  -- JS -> Lua bridge: window.webkit.messageHandlers.cmuxpick.postMessage({...})
+  local ucc = hs.webview.usercontent.new("cmuxpick")
+  ucc:setCallback(function(msg)
+    local body = type(msg) == "table" and msg.body or nil
+    if type(body) ~= "table" then return end
+    if body.action == "save" then
+      local arr = body.profiles or {}
+      if writeProfiles(arr) then
+        hs.alert.show("cmux-pick: saved " .. tostring(#arr) .. " profiles")
+      end
+    elseif body.action == "close" then
+      if self._editor then self._editor:delete(); self._editor = nil end
+    end
+  end)
+
+  local function openEditor()
+    local arr, wrapped = readProfilesFile()
+    editorWrapped = wrapped
+    local html = readFile(SOURCE_DIR .. "editor.html")
+    if not html then hs.alert.show("cmux-pick: editor.html not found"); return end
+    local b64 = hs.base64.encode(hs.json.encode(arr))
+    html = html:gsub("__PROFILES_B64__", function() return b64 end)
+
+    local fr = hs.screen.mainScreen():frame()
+    local w, h = 920, 640
+    local rect = { x = fr.x + (fr.w - w) / 2, y = fr.y + (fr.h - h) / 2, w = w, h = h }
+
+    if self._editor then self._editor:delete() end
+    local masks = hs.webview.windowMasks
+    local wv = hs.webview.new(rect, { developerExtrasEnabled = false }, ucc)
+      :windowStyle(masks.titled | masks.closable | masks.resizable)
+      :windowTitle("cmux-pick \u{2014} Profiles")
+      :allowTextEntry(true)
+      :html(html)
+    wv:windowCallback(function(action) if action == "closing" then self._editor = nil end end)
+    wv:show():bringToFront(true)
+    hs.timer.doAfter(0.05, function()
+      local win = wv:hswindow(); if win then win:focus() end
+    end)
+    self._editor = wv
+  end
+
+  ---------------------------------------------------------------------------
+  -- Picker
+  ---------------------------------------------------------------------------
+  local altTap            -- forward decl (captured by onPick, show, tap)
   local splitting = false -- guards against a double-launch if hide() fires onPick
 
-  local function onPick(c)                        -- Enter / click / Esc(nil)
+  local function onPick(c)                         -- Enter / click / Esc(nil)
     if altTap then altTap:stop() end
-    if splitting then return end                  -- a split is in progress; don't also open a workspace
+    if splitting then return end
+    if c and c.action == "edit" then openEditor(); return end
     launchWorkspace(c)
   end
 
   local picker = hs.chooser.new(onPick)
-  picker:searchSubText(true)                      -- typing also matches Command + Tags
-  picker:placeholderText("Search Profiles      \u{21A9} new workspace   \u{21E7}\u{21A9} split tab")
+  picker:searchSubText(true)                       -- typing matches Command + Tags
+  picker:placeholderText("Search Profiles      \u{21A9} workspace   \u{21E7}\u{21A9} split   \u{2318}E edit")
 
-  -- Shift+Return = split. (Cmd+Return is swallowed by the system -> beep.)
-  -- hs.chooser can't report modifiers in its callback, so intercept the key.
+  -- Alternate keys while the modal is open. hs.chooser can't report modifiers
+  -- in its callback, so intercept here. (Cmd+Return is swallowed by macOS ->
+  -- beep, which is why split is on Shift+Return.)
   local RETURN = hs.keycodes.map["return"]
+  local KEY_E  = hs.keycodes.map["e"]
   altTap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(e)
     if not picker:isVisible() then return false end
-    if e:getKeyCode() ~= RETURN then return false end
-    local f = e:getFlags()
-    if not f.shift or f.cmd or f.alt or f.ctrl then return false end
+    local f, kc = e:getFlags(), e:getKeyCode()
 
-    local ok, c = pcall(function() return picker:selectedRowContents() end)
-    local doSplit = ok and type(c) == "table" and c.text ~= nil
-    if doSplit then splitting = true end          -- set before hide(), in case hide() calls onPick
-    picker:hide()
-    if altTap then altTap:stop() end
-    if doSplit then
-      launchSplit(c)
-    else
-      hs.alert.show("cmux-pick: couldn't read selection — update Hammerspoon")
+    if kc == KEY_E and f.cmd and not (f.shift or f.alt or f.ctrl) then
+      picker:hide(); altTap:stop(); openEditor()
+      return true
     end
-    splitting = false
-    return true                                   -- swallow: no beep, no workspace
+
+    if kc == RETURN and f.shift and not (f.cmd or f.alt or f.ctrl) then
+      local ok, c = pcall(function() return picker:selectedRowContents() end)
+      local doSplit = ok and type(c) == "table" and c.text ~= nil and c.action == nil
+      if doSplit then splitting = true end
+      picker:hide(); altTap:stop()
+      if doSplit then
+        launchSplit(c)
+      elseif not (ok and type(c) == "table" and c.action) then
+        hs.alert.show("cmux-pick: couldn't read selection \u{2014} update Hammerspoon")
+      end
+      splitting = false
+      return true
+    end
+
+    return false
   end)
 
   local function show()
-    picker:choices(loadProfiles())                -- re-read each summon (live updates)
+    picker:choices(loadChoices())                  -- re-read each summon (live updates)
     picker:query("")
     altTap:start()
     picker:show()
@@ -191,7 +280,7 @@ function obj:start(opts)
     self._hk, self._wf = hk, wf
   end
 
-  self._picker, self._tap = picker, altTap        -- keep refs alive (avoid GC)
+  self._picker, self._tap = picker, altTap         -- keep refs alive (avoid GC)
   return self
 end
 
