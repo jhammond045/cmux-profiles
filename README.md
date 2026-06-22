@@ -1,4 +1,4 @@
-# cmux-pick
+# cmux-profiles
 
 [![luacheck](https://github.com/jhammond045/cmux-profiles/actions/workflows/luacheck.yml/badge.svg)](https://github.com/jhammond045/cmux-profiles/actions/workflows/luacheck.yml)
 
@@ -11,7 +11,7 @@ the profile opens in a new cmux workspace running its command (usually `ssh …`
 It reads the **same JSON format iTerm2 uses for dynamic profiles**, so you can
 point it at a profiles file you already maintain.
 
-![cmux-pick picker](docs/screenshot.png)
+![cmux-profiles picker](docs/screenshot.png)
 
 - **Enter** → open the profile in a new workspace.
 - **Shift+Enter** → open it as a split ("tab") in the current workspace.
@@ -32,8 +32,8 @@ cd cmux-profiles
 ./install.sh
 ```
 
-`install.sh` links `CmuxPick.spoon` into `~/.hammerspoon/Spoons/`, seeds a config
-at `~/.config/cmux-pick/profiles.json`, and adds the loader to your
+`install.sh` links `CmuxProfiles.spoon` into `~/.hammerspoon/Spoons/`, seeds a config
+at `~/.config/cmux-profiles/profiles.json`, and adds the loader to your
 `~/.hammerspoon/init.lua`. Then:
 
 1. **Enable socket access in cmux** — Settings → allow external processes
@@ -44,22 +44,22 @@ at `~/.config/cmux-pick/profiles.json`, and adds the loader to your
 
 ### Manual install
 
-Copy or symlink `CmuxPick.spoon` into `~/.hammerspoon/Spoons/`, then add to your
+Copy or symlink `CmuxProfiles.spoon` into `~/.hammerspoon/Spoons/`, then add to your
 `init.lua`:
 
 ```lua
-hs.loadSpoon("CmuxPick"):start()
+hs.loadSpoon("CmuxProfiles"):start()
 ```
 
-Or grab `CmuxPick.spoon.zip` from the
+Or grab `CmuxProfiles.spoon.zip` from the
 [latest release](https://github.com/jhammond045/cmux-profiles/releases/latest),
-unzip, and double-click `CmuxPick.spoon` to install it into Hammerspoon. (You
-still need to create `~/.config/cmux-pick/profiles.json` — copy
+unzip, and double-click `CmuxProfiles.spoon` to install it into Hammerspoon. (You
+still need to create `~/.config/cmux-profiles/profiles.json` — copy
 [`examples/profiles.example.json`](examples/profiles.example.json).)
 
 ## Profiles
 
-Profiles live in a JSON file (default `~/.config/cmux-pick/profiles.json`) in
+Profiles live in a JSON file (default `~/.config/cmux-profiles/profiles.json`) in
 iTerm2 dynamic-profile shape. Only a few fields are used:
 
 ```json
@@ -82,12 +82,12 @@ iTerm2 dynamic-profile shape. Only a few fields are used:
 A bare top-level array (`[ {…}, {…} ]`) also works. Typing in the picker matches
 the name, the command, and the tags.
 
-**Already keep an iTerm2 dynamic-profiles file?** Point cmux-pick straight at it
+**Already keep an iTerm2 dynamic-profiles file?** Point cmux-profiles straight at it
 instead of maintaining a second copy:
 
 ```bash
 ln -sf ~/Library/Application\ Support/iTerm2/DynamicProfiles/yours.json \
-       ~/.config/cmux-pick/profiles.json
+       ~/.config/cmux-profiles/profiles.json
 ```
 
 The file is re-read every time you open the picker, so edits show up immediately.
@@ -110,7 +110,7 @@ here will be overwritten the next time it regenerates.
 Pass an options table to `start()`:
 
 ```lua
-hs.loadSpoon("CmuxPick"):start({
+hs.loadSpoon("CmuxProfiles"):start({
   profiles   = "~/dotfiles/cmux-profiles.json",  -- profiles JSON path
   app        = "cmux",                           -- cmux's macOS app name
   splitDir   = "down",                           -- down | up | left | right
@@ -130,7 +130,7 @@ check it in the Hammerspoon console with
 
 ## How it works
 
-cmux ships a CLI that talks to the running app over a Unix socket. cmux-pick
+cmux ships a CLI that talks to the running app over a Unix socket. cmux-profiles
 shells out to it:
 
 - **Enter** → `cmux new-workspace --name … --cwd … --command … --focus true`

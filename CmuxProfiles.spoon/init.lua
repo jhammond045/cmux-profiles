@@ -1,4 +1,4 @@
---- === CmuxPick ===
+--- === CmuxProfiles ===
 ---
 --- An iTerm2-Profiles-style session launcher for the cmux terminal.
 ---
@@ -14,8 +14,8 @@
 local obj = {}
 obj.__index = obj
 
-obj.name     = "CmuxPick"
-obj.version  = "1.1.0"
+obj.name     = "CmuxProfiles"
+obj.version  = "2.0.0"
 obj.author   = "jhammond"
 obj.homepage = "https://github.com/jhammond045/cmux-profiles"
 obj.license  = "MIT - https://opensource.org/licenses/MIT"
@@ -39,9 +39,9 @@ local function readFile(p)
   local s = f:read("a"); f:close(); return s
 end
 
---- CmuxPick:start([opts]) -> self
+--- CmuxProfiles:start([opts]) -> self
 --- Start the launcher. opts (all optional):
----   profiles    profiles JSON path     (default ~/.config/cmux-pick/profiles.json)
+---   profiles    profiles JSON path     (default ~/.config/cmux-profiles/profiles.json)
 ---   app         cmux's macOS app name  (default "cmux")
 ---   splitDir    down|up|left|right     (default "down")
 ---   hotkeyMods  modifier table         (default {"cmd"})
@@ -50,7 +50,7 @@ end
 ---   cmuxBin     explicit CLI path      (default: auto-resolve)
 function obj:start(opts)
   opts = opts or {}
-  local PROFILES = opts.profiles or (os.getenv("HOME") .. "/.config/cmux-pick/profiles.json")
+  local PROFILES = opts.profiles or (os.getenv("HOME") .. "/.config/cmux-profiles/profiles.json")
   local APP      = opts.app or "cmux"
   local SPLIT    = opts.splitDir or "down"
   local MODS     = opts.hotkeyMods or { "cmd" }
@@ -78,7 +78,7 @@ function obj:start(opts)
   local function cmux(args)
     local bin = cmuxBin()
     if not bin then
-      hs.alert.show("cmux-pick: cmux CLI not found (install it from cmux Settings)")
+      hs.alert.show("cmux-profiles: cmux CLI not found (install it from cmux Settings)")
       return nil
     end
     local out, ok, _, rc = hs.execute(shq(bin) .. " " .. args, true)
@@ -170,21 +170,21 @@ function obj:start(opts)
     local out = editorWrapped and { Profiles = arr } or arr
     local f, err = io.open(PROFILES, "w")
     if not f then
-      hs.alert.show("cmux-pick: can't write profiles \u{2014} " .. tostring(err)); return false
+      hs.alert.show("cmux-profiles: can't write profiles \u{2014} " .. tostring(err)); return false
     end
     f:write(hs.json.encode(out, true)); f:write("\n"); f:close()
     return true
   end
 
-  -- JS -> Lua bridge: window.webkit.messageHandlers.cmuxpick.postMessage({...})
-  local ucc = hs.webview.usercontent.new("cmuxpick")
+  -- JS -> Lua bridge: window.webkit.messageHandlers.cmuxprofiles.postMessage({...})
+  local ucc = hs.webview.usercontent.new("cmuxprofiles")
   ucc:setCallback(function(msg)
     local body = type(msg) == "table" and msg.body or nil
     if type(body) ~= "table" then return end
     if body.action == "save" then
       local arr = body.profiles or {}
       if writeProfiles(arr) then
-        hs.alert.show("cmux-pick: saved " .. tostring(#arr) .. " profiles")
+        hs.alert.show("cmux-profiles: saved " .. tostring(#arr) .. " profiles")
       end
     elseif body.action == "close" then
       if self._editor then self._editor:delete(); self._editor = nil end
@@ -195,7 +195,7 @@ function obj:start(opts)
     local arr, wrapped = readProfilesFile()
     editorWrapped = wrapped
     local html = readFile(SOURCE_DIR .. "editor.html")
-    if not html then hs.alert.show("cmux-pick: editor.html not found"); return end
+    if not html then hs.alert.show("cmux-profiles: editor.html not found"); return end
     local b64 = hs.base64.encode(hs.json.encode(arr))
     html = html:gsub("__PROFILES_B64__", function() return b64 end)
 
@@ -207,7 +207,7 @@ function obj:start(opts)
     local masks = hs.webview.windowMasks
     local wv = hs.webview.new(rect, { developerExtrasEnabled = false }, ucc)
       :windowStyle(masks.titled | masks.closable | masks.resizable)
-      :windowTitle("cmux-pick \u{2014} Profiles")
+      :windowTitle("cmux-profiles \u{2014} Profiles")
       :allowTextEntry(true)
       :html(html)
     wv:windowCallback(function(action) if action == "closing" then self._editor = nil end end)
@@ -257,7 +257,7 @@ function obj:start(opts)
       if doSplit then
         launchSplit(c)
       elseif not (ok and type(c) == "table" and c.action) then
-        hs.alert.show("cmux-pick: couldn't read selection \u{2014} update Hammerspoon")
+        hs.alert.show("cmux-profiles: couldn't read selection \u{2014} update Hammerspoon")
       end
       splitting = false
       return true

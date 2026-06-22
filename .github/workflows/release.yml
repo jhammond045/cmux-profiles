@@ -12,9 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Zip the Spoon
-        run: zip -r CmuxPick.spoon.zip CmuxPick.spoon
+        run: zip -r CmuxProfiles.spoon.zip CmuxProfiles.spoon
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: CmuxPick.spoon.zip
+          files: CmuxProfiles.spoon.zip
           generate_release_notes: true

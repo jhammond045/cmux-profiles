@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-06-21
+
+### Changed
+- **Renamed the project to cmux-profiles.** The Spoon is now `CmuxProfiles.spoon`
+  and loads with `hs.loadSpoon("CmuxProfiles")`; the default config directory is
+  `~/.config/cmux-profiles/`. **Breaking** for existing installs: update the
+  loader in `~/.hammerspoon/init.lua` and move your config dir — or just re-run
+  `install.sh`.
+
 ## [1.1.0] - 2026-06-20
 
 ### Added
@@ -27,9 +36,10 @@ First release.
   `--name`/`--cwd`/`--command`/`--focus`).
 - **Shift+Enter** opens it as a split in the current workspace
   (`cmux new-split` then `cmux send`).
-- Packaged as a Hammerspoon Spoon (`CmuxPick.spoon`, `hs.loadSpoon("CmuxPick")`).
+- Packaged as a Hammerspoon Spoon (`CmuxProfiles.spoon`, `hs.loadSpoon("CmuxProfiles")`).
 - `install.sh` to link the Spoon, seed a config, and add the loader.
 - `luacheck` CI on every push.
 
+[2.0.0]: https://github.com/jhammond045/cmux-profiles/releases/tag/v2.0.0
 [1.1.0]: https://github.com/jhammond045/cmux-profiles/releases/tag/v1.1.0
 [1.0.0]: https://github.com/jhammond045/cmux-profiles/releases/tag/v1.0.0
